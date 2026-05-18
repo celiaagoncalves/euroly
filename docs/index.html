@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#683676" />
+  <meta name="description" content="Euroly — gestão financeira pessoal local-first. Importa extratos, categoriza automaticamente, segue créditos. Sem cloud, sem contas, sem telemetria." />
+  <meta property="og:title" content="Euroly — local-first budget tracker" />
+  <meta property="og:description" content="Personal budget tracker that runs entirely on your machine. FastAPI + React + SQLite." />
+  <meta property="og:image" content="img/banner.svg" />
+  <title>Euroly — local-first budget tracker</title>
+
+  <link rel="icon" type="image/svg+xml" href="img/favicon.svg" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50:  '#faf5fb', 100: '#f3e8f5', 200: '#e7d3eb', 300: '#d4afdc',
+              400: '#bb83c7', 500: '#9d5cae', 600: '#7f4291', 700: '#683676',
+              800: '#562e60', 900: '#48294f', 950: '#2e1633',
+            },
+            accent: {
+              50:  '#fffbeb', 100: '#fef3c7', 200: '#fde68a', 300: '#fcd34d',
+              400: '#fbbf24', 500: '#f59e0b', 600: '#d97706', 700: '#b45309',
+              800: '#92400e', 900: '#78350f',
+            },
+            surface: {
+              0:   '#ffffff', 50: '#fafafa', 100: '#f5f5f4', 200: '#e7e5e4',
+              300: '#d6d3d1', 400: '#a8a29e', 500: '#78716c', 600: '#57534e',
+              700: '#44403c', 800: '#292524', 900: '#1c1917',
+            },
+          },
+          fontFamily: {
+            sans: ['Manrope', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    body { font-family: 'Manrope', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    .tabular-nums { font-variant-numeric: tabular-nums; }
+    .grain {
+      background-image:
+        radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+  </style>
+</head>
+<body class="bg-surface-50 text-surface-900 antialiased">
+
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <!-- Demo notice (sticky)                                                -->
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <div class="sticky top-0 z-50 bg-accent-400 text-accent-900 text-sm shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 py-2 flex items-center justify-center gap-2 flex-wrap text-center">
+      <span class="font-semibold">Página de demonstração.</span>
+      <span class="hidden sm:inline">As funcionalidades não correm aqui — a app é local-only.</span>
+      <span class="sm:hidden">Funcionalidade só local.</span>
+      <a href="https://github.com/celiaagoncalves/euroly" class="underline font-semibold hover:text-accent-800">Ver no GitHub →</a>
+    </div>
+  </div>
+
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <!-- Hero                                                                -->
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <header class="relative overflow-hidden bg-gradient-to-br from-brand-700 via-brand-900 to-brand-950 text-white">
+    <div class="absolute inset-0 grain pointer-events-none"></div>
+    <div class="relative max-w-6xl mx-auto px-6 py-16 md:py-24 grid md:grid-cols-[160px_1fr] gap-8 items-center">
+      <!-- Logo -->
+      <svg viewBox="0 0 64 64" class="w-32 h-32 md:w-40 md:h-40 mx-auto md:mx-0" aria-hidden="true">
+        <defs>
+          <linearGradient id="hero-tile" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#7f4291"/>
+            <stop offset="1" stop-color="#2e1633"/>
+          </linearGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#hero-tile)"/>
+        <path d="M44 22.5c-2.6-3-6.5-4.8-10.7-4.8-7.6 0-13.7 6.1-13.7 13.7s6.1 13.7 13.7 13.7c4.2 0 8.1-1.9 10.7-4.8M16 28h22M16 36h22"
+              fill="none" stroke="#fbbf24" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+
+      <div class="text-center md:text-left">
+        <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight">Euroly</h1>
+        <p class="mt-4 text-lg md:text-xl text-brand-100 max-w-xl">
+          Gestão financeira pessoal.
+          <span class="text-accent-300 font-semibold">Local-first.</span>
+          Sem cloud, sem contas, sem telemetria.
+        </p>
+        <div class="mt-8 flex flex-wrap gap-3 justify-center md:justify-start">
+          <a href="https://github.com/celiaagoncalves/euroly" class="inline-flex items-center gap-2 bg-accent-400 hover:bg-accent-300 text-accent-900 font-semibold px-5 py-2.5 rounded-lg transition-colors">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.02c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.21.08 1.85 1.24 1.85 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.77.42-1.3.76-1.6-2.66-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.17 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.24 2.87.12 3.17.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.49 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A12 12 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+            Ver no GitHub
+          </a>
+          <a href="#install" class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-lg transition-colors backdrop-blur-sm">
+            Como instalar
+          </a>
+          <a href="#preview" class="inline-flex items-center gap-2 text-brand-100 hover:text-white font-medium px-5 py-2.5">
+            Ver o que faz ↓
+          </a>
+        </div>
+
+        <!-- Stack chips -->
+        <div class="mt-8 flex flex-wrap gap-2 justify-center md:justify-start text-xs font-semibold tracking-widest">
+          <span class="px-3 py-1 rounded-full bg-white/10 text-brand-100">FASTAPI</span>
+          <span class="px-3 py-1 rounded-full bg-white/10 text-brand-100">REACT</span>
+          <span class="px-3 py-1 rounded-full bg-white/10 text-brand-100">SQLITE</span>
+          <span class="px-3 py-1 rounded-full bg-white/10 text-brand-100">TAILWIND</span>
+          <span class="px-3 py-1 rounded-full bg-accent-400/20 text-accent-300">OPEN SOURCE</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <!-- UI Example (mocked dashboard with synthetic data)                   -->
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <section id="preview" class="max-w-6xl mx-auto px-6 py-16 md:py-24">
+    <div class="flex items-center gap-3 mb-2">
+      <span class="px-3 py-1 rounded-full bg-accent-100 text-accent-900 text-xs font-semibold tracking-widest">UI EXAMPLE</span>
+      <span class="text-xs text-surface-500">Dados sintéticos · imagem estática</span>
+    </div>
+    <h2 class="text-3xl md:text-4xl font-bold mb-2">O que vês quando corre na tua máquina</h2>
+    <p class="text-surface-600 max-w-2xl">
+      Esta secção é só visual — uma cópia estática do dashboard com valores fictícios para
+      ilustrar o aspeto da app. Clica em qualquer coisa abaixo e nada acontece. Para a
+      versão funcional, instala localmente.
+    </p>
+
+    <!-- Mock dashboard frame -->
+    <div class="mt-10 bg-surface-0 border border-surface-200 rounded-2xl shadow-xl overflow-hidden">
+      <!-- Faux browser chrome -->
+      <div class="flex items-center gap-2 px-4 py-3 border-b border-surface-200 bg-surface-50">
+        <span class="w-3 h-3 rounded-full bg-rose-400"></span>
+        <span class="w-3 h-3 rounded-full bg-accent-400"></span>
+        <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
+        <span class="ml-3 text-xs font-mono text-surface-500">localhost:5173/dashboard</span>
+      </div>
+
+      <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-48 shrink-0 bg-surface-0 border-r border-surface-200 px-3 py-4 hidden md:block">
+          <div class="flex items-center gap-2 px-2 mb-6">
+            <svg viewBox="0 0 64 64" class="w-7 h-7"><defs><linearGradient id="sb-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7f4291"/><stop offset="1" stop-color="#2e1633"/></linearGradient></defs><rect x="2" y="2" width="60" height="60" rx="14" fill="url(#sb-g)"/><path d="M44 22.5c-2.6-3-6.5-4.8-10.7-4.8-7.6 0-13.7 6.1-13.7 13.7s6.1 13.7 13.7 13.7c4.2 0 8.1-1.9 10.7-4.8M16 28h22M16 36h22" fill="none" stroke="#fbbf24" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="font-extrabold tracking-tight">Euroly</span>
+          </div>
+          <ul class="space-y-1 text-xs font-medium">
+            <li class="px-2 py-1.5 rounded-md bg-brand-50 text-brand-700">▣ Dashboard</li>
+            <li class="px-2 py-1.5 rounded-md text-surface-600">▢ Contas</li>
+            <li class="px-2 py-1.5 rounded-md text-surface-600">▢ Créditos</li>
+            <li class="px-2 py-1.5 rounded-md text-surface-600">▢ Transações</li>
+            <li class="px-2 py-1.5 rounded-md text-surface-600">▢ Validação</li>
+            <li class="px-2 py-1.5 rounded-md text-surface-600">▢ Backoffice</li>
+          </ul>
+        </aside>
+
+        <!-- Main panel -->
+        <main class="flex-1 p-5 md:p-7 bg-surface-50">
+          <div class="flex items-center justify-between mb-5">
+            <div>
+              <h3 class="text-2xl font-bold text-surface-900">Dashboard</h3>
+              <p class="text-xs text-surface-500">Vista geral · transferências internas excluídas</p>
+            </div>
+            <div class="hidden md:flex gap-2 text-xs">
+              <span class="border border-surface-200 rounded-lg px-3 py-1.5 bg-surface-0">Todas as contas</span>
+              <span class="border border-surface-200 rounded-lg px-3 py-1.5 bg-surface-0">Maio</span>
+              <span class="border border-surface-200 rounded-lg px-3 py-1.5 bg-surface-0">2026</span>
+            </div>
+          </div>
+
+          <!-- KPI cards -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+            <div class="bg-surface-0 border border-surface-200 rounded-xl p-4">
+              <div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Rendimento</div>
+              <div class="mt-1 text-xl font-bold tabular-nums text-emerald-600">2 450,00 €</div>
+            </div>
+            <div class="bg-surface-0 border border-surface-200 rounded-xl p-4">
+              <div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Despesas</div>
+              <div class="mt-1 text-xl font-bold tabular-nums text-rose-600">1 823,45 €</div>
+            </div>
+            <div class="bg-surface-0 border border-surface-200 rounded-xl p-4">
+              <div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Poupança</div>
+              <div class="mt-1 text-xl font-bold tabular-nums text-brand-700">626,55 €</div>
+            </div>
+            <div class="bg-surface-0 border border-surface-200 rounded-xl p-4">
+              <div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Taxa de Poupança</div>
+              <div class="mt-1 text-xl font-bold tabular-nums text-surface-900">25,6 %</div>
+            </div>
+          </div>
+
+          <div class="grid lg:grid-cols-2 gap-3">
+            <!-- Bar chart -->
+            <div class="bg-surface-0 border border-surface-200 rounded-xl p-4">
+              <div class="text-sm font-semibold mb-3">Rendimento vs Despesas (ano)</div>
+              <svg viewBox="0 0 300 160" class="w-full">
+                <g font-size="9" fill="#a8a29e">
+                  <text x="0" y="30">2400</text>
+                  <text x="0" y="75">1200</text>
+                  <text x="0" y="135">0</text>
+                </g>
+                <line x1="25" y1="20"  x2="295" y2="20"  stroke="#e7e5e4" stroke-dasharray="2 2"/>
+                <line x1="25" y1="70"  x2="295" y2="70"  stroke="#e7e5e4" stroke-dasharray="2 2"/>
+                <line x1="25" y1="120" x2="295" y2="120" stroke="#e7e5e4"/>
+                <!-- 6 months × 2 bars -->
+                <g transform="translate(35 0)">
+                  <rect x="0"   y="35"  width="14" height="85"  rx="2" fill="#22c55e"/>
+                  <rect x="16"  y="50"  width="14" height="70"  rx="2" fill="#ef4444"/>
+
+                  <rect x="44"  y="35"  width="14" height="85"  rx="2" fill="#22c55e"/>
+                  <rect x="60"  y="45"  width="14" height="75"  rx="2" fill="#ef4444"/>
+
+                  <rect x="88"  y="32"  width="14" height="88"  rx="2" fill="#22c55e"/>
+                  <rect x="104" y="58"  width="14" height="62"  rx="2" fill="#ef4444"/>
+
+                  <rect x="132" y="32"  width="14" height="88"  rx="2" fill="#22c55e"/>
+                  <rect x="148" y="50"  width="14" height="70"  rx="2" fill="#ef4444"/>
+
+                  <rect x="176" y="32"  width="14" height="88"  rx="2" fill="#22c55e"/>
+                  <rect x="192" y="55"  width="14" height="65"  rx="2" fill="#ef4444"/>
+
+                  <rect x="220" y="32"  width="14" height="88"  rx="2" fill="#22c55e"/>
+                  <rect x="236" y="56"  width="14" height="64"  rx="2" fill="#ef4444"/>
+                </g>
+                <g font-size="9" fill="#78716c" text-anchor="middle">
+                  <text x="50" y="135">Dez</text>
+                  <text x="94" y="135">Jan</text>
+                  <text x="138" y="135">Fev</text>
+                  <text x="182" y="135">Mar</text>
+                  <text x="226" y="135">Abr</text>
+                  <text x="270" y="135">Mai</text>
+                </g>
+                <g font-size="9" transform="translate(35 152)">
+                  <rect x="0" y="-7" width="9" height="9" rx="1" fill="#22c55e"/>
+                  <text x="13" y="0" fill="#44403c">Rendimento</text>
+                  <rect x="78" y="-7" width="9" height="9" rx="1" fill="#ef4444"/>
+                  <text x="91" y="0" fill="#44403c">Despesas</text>
+                </g>
+              </svg>
+            </div>
+
+            <!-- Pie chart -->
+            <div class="bg-surface-0 border border-surface-200 rounded-xl p-4">
+              <div class="text-sm font-semibold mb-3">Despesas por Categoria</div>
+              <div class="flex items-center gap-6">
+                <svg viewBox="-50 -50 100 100" class="w-32 h-32 -rotate-90">
+                  <!-- circumference of r=40 is ~251.3 -->
+                  <circle r="40" fill="none" stroke="#683676" stroke-width="20" stroke-dasharray="80 251.3"/>
+                  <circle r="40" fill="none" stroke="#fbbf24" stroke-width="20" stroke-dasharray="52 251.3" stroke-dashoffset="-80"/>
+                  <circle r="40" fill="none" stroke="#10b981" stroke-width="20" stroke-dasharray="30 251.3" stroke-dashoffset="-132"/>
+                  <circle r="40" fill="none" stroke="#0ea5e9" stroke-width="20" stroke-dasharray="24 251.3" stroke-dashoffset="-162"/>
+                  <circle r="40" fill="none" stroke="#78716c" stroke-width="20" stroke-dasharray="65 251.3" stroke-dashoffset="-186"/>
+                </svg>
+                <ul class="text-xs space-y-1.5">
+                  <li class="flex items-center gap-2"><span class="w-3 h-3 rounded-sm bg-brand-700"></span> Habitação <span class="ml-auto tabular-nums text-surface-500 pl-2">580,00 €</span></li>
+                  <li class="flex items-center gap-2"><span class="w-3 h-3 rounded-sm bg-accent-400"></span> Supermercado <span class="ml-auto tabular-nums text-surface-500 pl-2">380,45 €</span></li>
+                  <li class="flex items-center gap-2"><span class="w-3 h-3 rounded-sm bg-emerald-500"></span> Transportes <span class="ml-auto tabular-nums text-surface-500 pl-2">220,00 €</span></li>
+                  <li class="flex items-center gap-2"><span class="w-3 h-3 rounded-sm bg-sky-500"></span> Lazer <span class="ml-auto tabular-nums text-surface-500 pl-2">180,00 €</span></li>
+                  <li class="flex items-center gap-2"><span class="w-3 h-3 rounded-sm bg-surface-500"></span> Outros <span class="ml-auto tabular-nums text-surface-500 pl-2">463,00 €</span></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent transactions mini-table -->
+          <div class="mt-3 bg-surface-0 border border-surface-200 rounded-xl p-4">
+            <div class="text-sm font-semibold mb-3">Transações recentes</div>
+            <table class="w-full text-xs">
+              <thead class="text-surface-500">
+                <tr class="text-left border-b border-surface-200">
+                  <th class="py-2">Data</th>
+                  <th class="py-2">Descrição</th>
+                  <th class="py-2">Categoria</th>
+                  <th class="py-2 text-right">Valor</th>
+                </tr>
+              </thead>
+              <tbody class="tabular-nums">
+                <tr class="border-b border-surface-100">
+                  <td class="py-2 text-surface-600">15-05-2026</td>
+                  <td class="py-2">Supermercado</td>
+                  <td class="py-2"><span class="px-2 py-0.5 rounded-full bg-accent-50 text-accent-800 text-[10px]">Supermercado</span></td>
+                  <td class="py-2 text-right font-semibold text-rose-600">-47,32 €</td>
+                </tr>
+                <tr class="border-b border-surface-100">
+                  <td class="py-2 text-surface-600">14-05-2026</td>
+                  <td class="py-2">Renda Mensal</td>
+                  <td class="py-2"><span class="px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 text-[10px]">Habitação</span></td>
+                  <td class="py-2 text-right font-semibold text-rose-600">-550,00 €</td>
+                </tr>
+                <tr class="border-b border-surface-100">
+                  <td class="py-2 text-surface-600">13-05-2026</td>
+                  <td class="py-2">Salário Mensal</td>
+                  <td class="py-2"><span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px]">Salário</span></td>
+                  <td class="py-2 text-right font-semibold text-emerald-600">+2 450,00 €</td>
+                </tr>
+                <tr class="border-b border-surface-100">
+                  <td class="py-2 text-surface-600">12-05-2026</td>
+                  <td class="py-2">Restaurante Centro</td>
+                  <td class="py-2"><span class="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 text-[10px]">Restauração</span></td>
+                  <td class="py-2 text-right font-semibold text-rose-600">-22,80 €</td>
+                </tr>
+                <tr>
+                  <td class="py-2 text-surface-600">11-05-2026</td>
+                  <td class="py-2">Combustível</td>
+                  <td class="py-2"><span class="px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 text-[10px]">Transportes</span></td>
+                  <td class="py-2 text-right font-semibold text-rose-600">-55,40 €</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <!-- Features grid                                                       -->
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <section class="bg-surface-100 border-y border-surface-200">
+    <div class="max-w-6xl mx-auto px-6 py-16 md:py-24">
+      <h2 class="text-3xl md:text-4xl font-bold mb-2">O que faz</h2>
+      <p class="text-surface-600 max-w-2xl mb-12">Funcionalidades que correm 100% local na tua máquina, contra um único ficheiro SQLite.</p>
+
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <article class="bg-surface-0 border border-surface-200 rounded-xl p-6">
+          <div class="w-10 h-10 rounded-lg bg-brand-100 text-brand-700 flex items-center justify-center text-xl font-bold mb-3">⊞</div>
+          <h3 class="font-bold text-lg">Multi-conta</h3>
+          <p class="text-sm text-surface-600 mt-2">Várias contas bancárias, cartões e carteiras e-money lado a lado. Saldos calculados em tempo real.</p>
+        </article>
+
+        <article class="bg-surface-0 border border-surface-200 rounded-xl p-6">
+          <div class="w-10 h-10 rounded-lg bg-brand-100 text-brand-700 flex items-center justify-center text-xl font-bold mb-3">↑</div>
+          <h3 class="font-bold text-lg">Import .xlsx / .csv</h3>
+          <p class="text-sm text-surface-600 mt-2">Detecta colunas em formatos PT (Data Operação, Montante, Saldo). Locale-aware: lê 1.234,56 € sem chiar.</p>
+        </article>
+
+        <article class="bg-surface-0 border border-surface-200 rounded-xl p-6">
+          <div class="w-10 h-10 rounded-lg bg-brand-100 text-brand-700 flex items-center justify-center text-xl font-bold mb-3">✦</div>
+          <h3 class="font-bold text-lg">Auto-categorização</h3>
+          <p class="text-sm text-surface-600 mt-2">Regras por palavra-chave (contains / exact / startswith / regex). Importações futuras categorizam-se sozinhas.</p>
+        </article>
+
+        <article class="bg-surface-0 border border-surface-200 rounded-xl p-6">
+          <div class="w-10 h-10 rounded-lg bg-accent-100 text-accent-700 flex items-center justify-center text-xl font-bold mb-3">€</div>
+          <h3 class="font-bold text-lg">Tracking de créditos</h3>
+          <p class="text-sm text-surface-600 mt-2">Modela cada empréstimo (total, prestação, prazo). Pagamentos ligam-se automaticamente via regras.</p>
+        </article>
+
+        <article class="bg-surface-0 border border-surface-200 rounded-xl p-6">
+          <div class="w-10 h-10 rounded-lg bg-accent-100 text-accent-700 flex items-center justify-center text-xl font-bold mb-3">↔</div>
+          <h3 class="font-bold text-lg">Deteção de pares</h3>
+          <p class="text-sm text-surface-600 mt-2">Encontra transações que se anulam (pagamento + reembolso) com tolerância configurável de valor e janela de dias.</p>
+        </article>
+
+        <article class="bg-surface-0 border border-surface-200 rounded-xl p-6">
+          <div class="w-10 h-10 rounded-lg bg-accent-100 text-accent-700 flex items-center justify-center text-xl font-bold mb-3">↶</div>
+          <h3 class="font-bold text-lg">Undo de 5s</h3>
+          <p class="text-sm text-surface-600 mt-2">Apagar é reversível: toast com botão Anular antes de qualquer DELETE chegar à base de dados.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <!-- Install                                                             -->
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <section id="install" class="max-w-6xl mx-auto px-6 py-16 md:py-24">
+    <h2 class="text-3xl md:text-4xl font-bold mb-2">Como instalar</h2>
+    <p class="text-surface-600 mb-10">Windows com Python 3.11+ e Node.js 18+ instalados.</p>
+
+    <div class="grid md:grid-cols-3 gap-6">
+      <div>
+        <div class="flex items-center gap-3 mb-2">
+          <span class="w-7 h-7 rounded-full bg-brand-700 text-white text-sm font-bold flex items-center justify-center">1</span>
+          <h3 class="font-bold">Clonar</h3>
+        </div>
+        <pre class="bg-brand-950 text-brand-100 text-xs rounded-lg p-3 overflow-x-auto font-mono">git clone https://github.com/celiaagoncalves/euroly.git
+cd euroly</pre>
+      </div>
+
+      <div>
+        <div class="flex items-center gap-3 mb-2">
+          <span class="w-7 h-7 rounded-full bg-brand-700 text-white text-sm font-bold flex items-center justify-center">2</span>
+          <h3 class="font-bold">Arrancar</h3>
+        </div>
+        <pre class="bg-brand-950 text-brand-100 text-xs rounded-lg p-3 overflow-x-auto font-mono">start.bat</pre>
+        <p class="text-xs text-surface-500 mt-2">Primeira execução cria venv + npm install. Seguintes são instantâneas.</p>
+      </div>
+
+      <div>
+        <div class="flex items-center gap-3 mb-2">
+          <span class="w-7 h-7 rounded-full bg-accent-400 text-accent-900 text-sm font-bold flex items-center justify-center">3</span>
+          <h3 class="font-bold">Abrir</h3>
+        </div>
+        <pre class="bg-brand-950 text-brand-100 text-xs rounded-lg p-3 overflow-x-auto font-mono">http://localhost:5173</pre>
+        <p class="text-xs text-surface-500 mt-2">O browser abre sozinho. Configura contas em Backoffice e importa o teu extrato.</p>
+      </div>
+    </div>
+
+    <div class="mt-10 bg-accent-50 border-l-4 border-accent-400 rounded-r-lg p-4 text-sm text-surface-700">
+      <strong class="text-accent-900">Privacidade.</strong>
+      A base de dados (<code class="font-mono text-xs">backend/euroly.db</code>) fica só no teu computador.
+      Nenhum dado é enviado para servidores externos. Não há contas, não há telemetria, não há tracking.
+      Os nomes das tuas instituições e credores nunca aparecem no código do repositório.
+    </div>
+  </section>
+
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <!-- Docs links                                                          -->
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <section class="bg-surface-100 border-y border-surface-200">
+    <div class="max-w-6xl mx-auto px-6 py-16">
+      <h2 class="text-3xl md:text-4xl font-bold mb-8">Documentação</h2>
+
+      <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <a href="https://github.com/celiaagoncalves/euroly/blob/main/docs/MANUAL.md" class="block bg-surface-0 border border-surface-200 rounded-xl p-5 hover:border-brand-300 hover:shadow-sm transition-all">
+          <div class="text-xs font-semibold tracking-wider text-accent-700">PT · UTILIZADOR</div>
+          <div class="mt-1 font-bold">Manual</div>
+          <div class="mt-1 text-xs text-surface-600">Como usar a app no dia-a-dia.</div>
+        </a>
+        <a href="https://github.com/celiaagoncalves/euroly/blob/main/docs/ARCHITECTURE.md" class="block bg-surface-0 border border-surface-200 rounded-xl p-5 hover:border-brand-300 hover:shadow-sm transition-all">
+          <div class="text-xs font-semibold tracking-wider text-brand-700">EN · TÉCNICO</div>
+          <div class="mt-1 font-bold">Architecture</div>
+          <div class="mt-1 text-xs text-surface-600">System overview + data flow.</div>
+        </a>
+        <a href="https://github.com/celiaagoncalves/euroly/blob/main/docs/TECH_STACK.md" class="block bg-surface-0 border border-surface-200 rounded-xl p-5 hover:border-brand-300 hover:shadow-sm transition-all">
+          <div class="text-xs font-semibold tracking-wider text-brand-700">EN · TÉCNICO</div>
+          <div class="mt-1 font-bold">Tech stack</div>
+          <div class="mt-1 text-xs text-surface-600">Libraries + rationale.</div>
+        </a>
+        <a href="https://github.com/celiaagoncalves/euroly/blob/main/docs/DATA_MODEL.md" class="block bg-surface-0 border border-surface-200 rounded-xl p-5 hover:border-brand-300 hover:shadow-sm transition-all">
+          <div class="text-xs font-semibold tracking-wider text-brand-700">EN · TÉCNICO</div>
+          <div class="mt-1 font-bold">Data model</div>
+          <div class="mt-1 text-xs text-surface-600">Tables, relationships, constraints.</div>
+        </a>
+        <a href="https://github.com/celiaagoncalves/euroly/blob/main/docs/API.md" class="block bg-surface-0 border border-surface-200 rounded-xl p-5 hover:border-brand-300 hover:shadow-sm transition-all">
+          <div class="text-xs font-semibold tracking-wider text-brand-700">EN · TÉCNICO</div>
+          <div class="mt-1 font-bold">API reference</div>
+          <div class="mt-1 text-xs text-surface-600">Endpoints com exemplos.</div>
+        </a>
+        <a href="https://github.com/celiaagoncalves/euroly/blob/main/docs/IMPORT.md" class="block bg-surface-0 border border-surface-200 rounded-xl p-5 hover:border-brand-300 hover:shadow-sm transition-all">
+          <div class="text-xs font-semibold tracking-wider text-brand-700">EN · TÉCNICO</div>
+          <div class="mt-1 font-bold">Bank file import</div>
+          <div class="mt-1 text-xs text-surface-600">Column detection, dedupe, locales.</div>
+        </a>
+        <a href="https://github.com/celiaagoncalves/euroly/blob/main/docs/RULES.md" class="block bg-surface-0 border border-surface-200 rounded-xl p-5 hover:border-brand-300 hover:shadow-sm transition-all">
+          <div class="text-xs font-semibold tracking-wider text-brand-700">EN · TÉCNICO</div>
+          <div class="mt-1 font-bold">Categorization rules</div>
+          <div class="mt-1 text-xs text-surface-600">Match types + priority.</div>
+        </a>
+        <a href="https://github.com/celiaagoncalves/euroly/blob/main/docs/TESTING.md" class="block bg-surface-0 border border-surface-200 rounded-xl p-5 hover:border-brand-300 hover:shadow-sm transition-all">
+          <div class="text-xs font-semibold tracking-wider text-brand-700">EN · TÉCNICO</div>
+          <div class="mt-1 font-bold">Testing</div>
+          <div class="mt-1 text-xs text-surface-600">71 testes · in-memory SQLite.</div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <!-- Footer                                                              -->
+  <!-- ──────────────────────────────────────────────────────────────────── -->
+  <footer class="bg-brand-950 text-brand-100">
+    <div class="max-w-6xl mx-auto px-6 py-10 flex flex-col md:flex-row items-center md:items-start justify-between gap-6">
+      <div class="flex items-center gap-3">
+        <svg viewBox="0 0 64 64" class="w-10 h-10"><defs><linearGradient id="ft-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7f4291"/><stop offset="1" stop-color="#2e1633"/></linearGradient></defs><rect x="2" y="2" width="60" height="60" rx="14" fill="url(#ft-g)"/><path d="M44 22.5c-2.6-3-6.5-4.8-10.7-4.8-7.6 0-13.7 6.1-13.7 13.7s6.1 13.7 13.7 13.7c4.2 0 8.1-1.9 10.7-4.8M16 28h22M16 36h22" fill="none" stroke="#fbbf24" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div>
+          <div class="font-extrabold text-white">Euroly</div>
+          <div class="text-xs text-brand-300">Local-first budget tracker · MIT licensed</div>
+        </div>
+      </div>
+      <div class="text-xs flex flex-wrap gap-x-6 gap-y-2 justify-center">
+        <a class="hover:text-white" href="https://github.com/celiaagoncalves/euroly">Repositório</a>
+        <a class="hover:text-white" href="https://github.com/celiaagoncalves/euroly/issues">Issues</a>
+        <a class="hover:text-white" href="https://github.com/celiaagoncalves/euroly/blob/main/LICENSE">Licença</a>
+        <a class="hover:text-white" href="https://github.com/celiaagoncalves/euroly/blob/main/docs/MANUAL.md">Manual</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

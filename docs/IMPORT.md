@@ -125,7 +125,7 @@ encodings = ["utf-8", "utf-8-sig", "latin-1"]
 seps      = [",", ";", "\t"]
 ```
 
-This covers virtually every PT bank CSV the project has seen — BOM-prefixed UTF-8 from Caixa Geral, semicolons from older Millennium exports, Activo Bank's plain UTF-8. If your file fails, open it in a text editor and check the actual delimiter / encoding; add it to the list above if it's something new.
+This covers virtually every PT bank CSV the project has seen — BOM-prefixed UTF-8 with both `,` and `;` separators is common, and older exports occasionally use `latin-1`. If your file fails, open it in a text editor and check the actual delimiter / encoding; add it to the list above if it's something new.
 
 ## Dedupe
 

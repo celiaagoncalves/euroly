@@ -75,11 +75,15 @@ class Credit(Base):
     __tablename__ = "credits"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(120), nullable=False)  # free-form, e.g. "Sofá - Cofidis"
-    creditor = Column(String(80), nullable=False)  # user-entered, e.g. "Cofidis"
+    name = Column(String(120), nullable=False)  # free-form, e.g. "Empréstimo Pessoal"
+    creditor = Column(String(80), nullable=False)  # user-entered lender name
     total_amount = Column(Float, nullable=False)  # total to be repaid (principal + interest)
     monthly_payment = Column(Float, nullable=False)
     total_installments = Column(Integer, nullable=False)
+    # For credits that started before tracking in Euroly: amount already
+    # paid via installments that aren't in the transactions table. Added
+    # to amount_paid in progress computation.
+    paid_before_tracking = Column(Float, nullable=False, default=0.0)
     interest_rate = Column(Float, nullable=True)  # annual %, optional
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)

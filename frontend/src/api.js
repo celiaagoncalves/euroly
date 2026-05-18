@@ -38,6 +38,15 @@ export const api = {
   updateTransaction: (id, body) =>
     request(`/transactions/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteTransaction: (id) => request(`/transactions/${id}`, { method: 'DELETE' }),
+  bulkDeleteTransactions: (ids) =>
+    request('/transactions/bulk-delete', { method: 'POST', body: JSON.stringify({ ids }) }),
+  transferSuggestions: (params) =>
+    request(`/transactions/transfer-suggestions${qs(params)}`),
+  bulkMarkTransfer: (ids, isTransfer = true) =>
+    request('/transactions/bulk-mark-transfer', {
+      method: 'POST',
+      body: JSON.stringify({ ids, is_transfer: isTransfer }),
+    }),
   // Multipart upload — bypasses the JSON `request` helper because we need
   // FormData and no Content-Type header (the browser sets the boundary).
   importTransactions: async (file, accountId) => {
@@ -82,6 +91,7 @@ export const api = {
   previewRule: (body) =>
     request('/rules/preview', { method: 'POST', body: JSON.stringify(body) }),
   exportRules: () => request('/rules/export'),
+  applyAllRules: () => request('/rules/apply', { method: 'POST' }),
 };
 
 // Single source of truth for currency formatting across the UI — always

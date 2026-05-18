@@ -20,6 +20,7 @@ Welcome to the Euroly docs. Pick a starting point based on what you're trying to
 | Doc | What's in it |
 |-----|--------------|
 | [Development guide](DEVELOPMENT.md) | Setup, day-to-day commands, conventions, how to add features. |
+| [Testing](TESTING.md) | How to run the pytest suite, what's covered, how to add tests. |
 | [Bank file import](IMPORT.md) | The xlsx/csv pipeline in detail: column detection, locale-aware numbers, dedupe, adding a new bank format. |
 | [Categorization rules](RULES.md) | Match types, priority resolution, credit linking, preview, export/import. |
 

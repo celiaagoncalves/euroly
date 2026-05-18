@@ -34,8 +34,8 @@ DATE_CANDIDATES = [
 VALUE_DATE_CANDIDATES = ["data valor"]
 DESC_CANDIDATES = ["descrição", "descricao", "description", "memo", "details", "detalhes"]
 AMOUNT_CANDIDATES = ["montante", "valor", "amount"]
-# Some banks (older Millennium exports) split debits/credits into two
-# columns instead of a signed amount column — handled as a fallback.
+# Some bank exports split debits/credits into two columns instead of a
+# single signed amount column — handled as a fallback.
 DEBIT_CANDIDATES = ["débito", "debito", "debit", "saída", "saida"]
 CREDIT_CANDIDATES = ["crédito", "credito", "credit", "entrada"]
 BALANCE_CANDIDATES = ["saldo contabilístico", "saldo contabilistico", "saldo", "balance"]
@@ -68,16 +68,34 @@ def import_bank_file(db: Session, file: UploadFile, account_id: int) -> dict:
         raise HTTPException(400, f"Could not parse file: {exc}")
 
     df = _normalize_columns(df)
-    date_col = _pick_column(df, DATE_CANDIDATES)
-    desc_col = _pick_column(df, DESC_CANDIDATES)
+
+    # Resolve columns in specificity order, excluding ones already claimed.
+    # This matters because some candidates (e.g. "valor") would otherwise
+    # match unrelated columns ("data valor"). Each detector call narrows
+    # the available column pool for the next.
+    claimed: set[str] = set()
+    date_col = _pick_column(df, DATE_CANDIDATES, claimed)
+    if date_col:
+        claimed.add(date_col)
+    value_date_col = _pick_column(df, VALUE_DATE_CANDIDATES, claimed)
+    if value_date_col:
+        claimed.add(value_date_col)
+    desc_col = _pick_column(df, DESC_CANDIDATES, claimed)
+    if desc_col:
+        claimed.add(desc_col)
+    balance_col = _pick_column(df, BALANCE_CANDIDATES, claimed)
+    if balance_col:
+        claimed.add(balance_col)
+    amount_col = _pick_column(df, AMOUNT_CANDIDATES, claimed)
+    if amount_col:
+        claimed.add(amount_col)
+    debit_col = _pick_column(df, DEBIT_CANDIDATES, claimed)
+    if debit_col:
+        claimed.add(debit_col)
+    credit_col = _pick_column(df, CREDIT_CANDIDATES, claimed)
+
     if not date_col or not desc_col:
         raise HTTPException(400, "File must contain date and description columns")
-
-    value_date_col = _pick_column(df, VALUE_DATE_CANDIDATES)
-    amount_col = _pick_column(df, AMOUNT_CANDIDATES)
-    debit_col = _pick_column(df, DEBIT_CANDIDATES)
-    credit_col = _pick_column(df, CREDIT_CANDIDATES)
-    balance_col = _pick_column(df, BALANCE_CANDIDATES)
 
     new_count = 0
     skipped = 0
@@ -157,20 +175,34 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _pick_column(df: pd.DataFrame, candidates: list[str]) -> Optional[str]:
+def _pick_column(
+    df: pd.DataFrame,
+    candidates: list[str],
+    exclude: Optional[set] = None,
+) -> Optional[str]:
     """Two-pass column resolver. Exact match wins; substring fallback handles
     decorated headers like "Montante( EUR )" matching the candidate "montante".
+
+    Iteration is **candidate-first**: more specific candidates listed earlier
+    win against less specific ones, regardless of where the columns sit in
+    the file. Without this, a generic candidate like "valor" would match
+    "data valor" before a more specific "montante" got a chance to match
+    "montante( eur )".
+
+    Pass `exclude` with columns already claimed by previous detector calls
+    to prevent the same column being assigned to two roles (e.g. so
+    "data valor" claimed by `value_date_col` can't also become `amount_col`).
     """
-    # Pass 1: exact (post-normalization) match.
-    for c in df.columns:
-        if c in candidates:
-            return c
-    # Pass 2: substring match, in column order — so when multiple columns
-    # are compatible (e.g. "data operação" and "data valor" both contain
-    # "data"), we return whichever appears first in the file. The
-    # candidate ordering above puts more specific entries first.
-    for c in df.columns:
-        for cand in candidates:
+    exclude = exclude or set()
+    available = [c for c in df.columns if c not in exclude]
+    # Pass 1: exact match.
+    for cand in candidates:
+        for c in available:
+            if c == cand:
+                return c
+    # Pass 2: substring match.
+    for cand in candidates:
+        for c in available:
             if cand in c:
                 return c
     return None
@@ -184,13 +216,20 @@ def _parse_date(value) -> Optional[date]:
     if isinstance(value, date):
         return value
     text = str(value).strip()
+    if not text:
+        return None
     for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y", "%Y/%m/%d"):
         try:
             return datetime.strptime(text, fmt).date()
         except ValueError:
             continue
     try:
-        return pd.to_datetime(text, dayfirst=True).date()
+        # `pd.to_datetime` returns NaT (not raise) for many invalid inputs;
+        # guard explicitly so the caller always gets `None` or a real date.
+        ts = pd.to_datetime(text, dayfirst=True, errors="coerce")
+        if pd.isna(ts):
+            return None
+        return ts.date()
     except Exception:
         return None
 

@@ -7,23 +7,24 @@ export function Card({ title, value, hint, accent = 'slate' }) {
   const accents = {
     green: 'text-emerald-600',
     red: 'text-rose-600',
-    blue: 'text-sky-600',
-    slate: 'text-slate-900',
+    blue: 'text-brand-700',
+    slate: 'text-surface-900',
+    amber: 'text-accent-600',
   };
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-      <div className="text-sm font-medium text-slate-500">{title}</div>
-      <div className={`mt-2 text-2xl font-semibold ${accents[accent]}`}>{value}</div>
-      {hint && <div className="mt-1 text-xs text-slate-400">{hint}</div>}
+    <div className="bg-surface-0 border border-surface-200 rounded-xl p-5 shadow-sm">
+      <div className="text-xs font-medium text-surface-500 uppercase tracking-wide">{title}</div>
+      <div className={`mt-2 text-2xl font-bold tabular-nums ${accents[accent]}`}>{value}</div>
+      {hint && <div className="mt-1 text-xs text-surface-400">{hint}</div>}
     </div>
   );
 }
 
 export function Section({ title, children, action }) {
   return (
-    <section className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+    <section className="bg-surface-0 border border-surface-200 rounded-xl p-5 shadow-sm">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-semibold text-slate-800">{title}</h2>
+        <h2 className="text-base font-semibold text-surface-800">{title}</h2>
         {action}
       </div>
       {children}

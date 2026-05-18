@@ -11,10 +11,10 @@ A rule is a (`keyword`, `match_type`) pair plus a target `category_id` and an op
 | `keyword` | `"EDP COMERCIAL"` | Pattern (case-insensitive) |
 | `match_type` | `"contains"` | One of `contains`, `exact`, `startswith`, `regex` |
 | `category_id` | `5` (Energia) | Required |
-| `credit_id` | `2` (Sofá - Cofidis) | Optional |
+| `credit_id` | `2` (Empréstimo Demo - Credor A) | Optional |
 | `priority` | `100` | Lower runs first |
 
-In plain English: "When a transaction description contains `EDP COMERCIAL`, put it in the Energia category." Or, with `credit_id` set: "When the description contains `COFIDIS`, put it in Créditos AND mark it as a payment toward the Sofá loan."
+In plain English: "When a transaction description contains `EDP COMERCIAL`, put it in the Energia category." Or, with `credit_id` set: "When the description contains `CREDOR-A`, put it in Créditos AND mark it as a payment toward the Empréstimo Demo loan."
 
 ## Match types
 
@@ -24,7 +24,7 @@ All four are case-insensitive. Description and keyword are lowercased before com
 |------|----------|-----------------|---------|
 | `contains` | `keyword in description` | `EDP` | `"EDP COMERCIAL FACTURA 1234"`, `"edp serv univ"` |
 | `exact` | `description.strip() == keyword.strip()` | `Pagamento Levantamento ATM` | only that exact string |
-| `startswith` | `description.startswith(keyword)` | `COFIDIS` | `"COFIDIS DD ..."` but not `"DD COFIDIS ..."` |
+| `startswith` | `description.startswith(keyword)` | `CREDOR-A` | `"CREDOR-A DD ..."` but not `"DD CREDOR-A ..."` |
 | `regex` | `re.search(keyword, description, IGNORECASE)` | `^[A-Z]{3}\s\d+` | any pattern; invalid regex compiles to "matches nothing" |
 
 `contains` covers ~95% of real bank descriptions. Reach for `regex` when you need word boundaries or to match digits.
@@ -45,19 +45,19 @@ That means **specific rules need lower priority numbers than general ones**. Two
 
 ```
 priority 100, contains "PAGAMENTO"           → Outros
-priority 100, contains "PAGAMENTO COFIDIS"   → Créditos (Cofidis)
+priority 100, contains "PAGAMENTO CREDOR-A"   → Créditos (Credor A)
 ```
 
-Both have priority 100; "Outros" might win on tie-break (`id ASC`). The Cofidis rule never gets to run.
+Both have priority 100; "Outros" might win on tie-break (`id ASC`). The Credor A rule never gets to run.
 
 **Fixed:**
 
 ```
-priority  50, contains "PAGAMENTO COFIDIS"   → Créditos (Cofidis)
+priority  50, contains "PAGAMENTO CREDOR-A"   → Créditos (Credor A)
 priority 100, contains "PAGAMENTO"           → Outros
 ```
 
-Now the specific Cofidis rule runs first and wins.
+Now the specific Credor A rule runs first and wins.
 
 The Backoffice doesn't reorder rules visually; it just lets you set the priority number directly.
 
@@ -71,15 +71,15 @@ Rules apply only to transactions where **`category_id IS NULL`**. A transaction 
 
 A rule with `credit_id` set acts as a two-for-one: when it matches, it assigns both the category AND links the transaction to the credit. This is the canonical way to track loan payments:
 
-1. Create the credit in **Backoffice → Créditos** (e.g. "Sofá", creditor "Cofidis", total 1800 €, mensal 50 €, 36 prestações).
-2. Find the bank line text for the monthly debit. Looking at your imported transactions, it might be `"DD COFIDIS XXXXXXXX"` or similar.
+1. Create the credit in **Backoffice → Créditos** (e.g. "Empréstimo Demo", creditor "Credor A", total 1800 €, mensal 50 €, 36 prestações).
+2. Find the bank line text for the monthly debit. Looking at your imported transactions, it might be `"DD CREDOR-A XXXXXXXX"` or similar.
 3. Create a rule in **Backoffice → Regras**:
-   - keyword: `COFIDIS`
+   - keyword: `CREDOR-A`
    - match type: `contains`
    - category: `Créditos` (or whatever you call your loans bucket)
-   - **credit: `Sofá`**
+   - **credit: `Empréstimo Demo`**
    - priority: 50 (lower than the default 100, so it beats any catch-all)
-4. On the next import (or any past one where these transactions still have `credit_id IS NULL`), every Cofidis line is automatically pinned to the Sofá credit.
+4. On the next import (or any past one where these transactions still have `credit_id IS NULL`), every Credor A line is automatically pinned to the Empréstimo Demo credit.
 
 The **Créditos** page then shows real progress: amount paid, installments paid, % done, and the list of linked payments.
 
@@ -108,7 +108,7 @@ This is a heuristic and often too specific (the factura number is in the keyword
 {
   "rules": [
     { "keyword": "EDP", "match_type": "contains", "priority": 100, "category_name": "Energia" },
-    { "keyword": "COFIDIS", "match_type": "contains", "priority": 50, "category_name": "Créditos" }
+    { "keyword": "CREDOR-A", "match_type": "contains", "priority": 50, "category_name": "Créditos" }
   ]
 }
 ```

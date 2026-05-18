@@ -169,7 +169,7 @@ This is a design constraint, not an aspiration. Euroly's repository is intended 
 
 **Implementation:**
 
-- `Account` and `Credit` tables are **never seeded** with default rows. The user creates them via the Backoffice UI on first launch. No bank name (Santander, Activo Bank, Revolut, …) or creditor name (Cofidis, Cetelem, …) is hardcoded anywhere in the source tree.
+- `Account` and `Credit` tables are **never seeded** with default rows. The user creates them via the Backoffice UI on first launch. No specific bank or creditor name is hardcoded anywhere in the source tree, tests, or docs.
 - `backend/euroly.db` is in `.gitignore`. The default `Category` seed contains only generic PT names (Salário, Habitação, Energia, …) that say nothing about the user.
 - The auto-categorization engine is description-based — bank line text is matched against user-defined rules, never against a built-in vendor dictionary.
 - The user manual ([MANUAL.md](MANUAL.md)) uses placeholder names like "Conta Principal", "Crédito Pessoal".

@@ -105,8 +105,8 @@ Loans and credit lines. **Never seeded** — created by the user via Backoffice 
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | INTEGER PK | |
-| `name` | VARCHAR(120) NOT NULL | E.g. "Sofá" |
-| `creditor` | VARCHAR(80) NOT NULL | E.g. "Cofidis" — free-form, user-entered |
+| `name` | VARCHAR(120) NOT NULL | Free-form, user-facing |
+| `creditor` | VARCHAR(80) NOT NULL | Free-form lender name, user-entered |
 | `total_amount` | FLOAT NOT NULL | Total amount to be repaid (principal + interest) |
 | `monthly_payment` | FLOAT NOT NULL | Fixed installment |
 | `total_installments` | INTEGER NOT NULL | E.g. 36 |

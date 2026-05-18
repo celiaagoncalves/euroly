@@ -61,8 +61,13 @@ Then visit `http://localhost:5173`.
 | Frontend with HMR | `cd frontend && npm run dev` |
 | Production build (frontend) | `cd frontend && npm run build` |
 | Preview built frontend | `cd frontend && npm run preview` |
+| Run backend tests | `cd backend && .venv\Scripts\python.exe -m pytest` |
+| Run a single test file | `pytest tests/test_importer.py` |
+| Filter tests by name | `pytest -k pair` |
 | Live API docs (Swagger) | open `http://localhost:8000/docs` |
 | Live API docs (ReDoc) | open `http://localhost:8000/redoc` |
+
+See [TESTING.md](TESTING.md) for the testing architecture, what's covered, and how to add new tests.
 
 ## Resetting the database
 

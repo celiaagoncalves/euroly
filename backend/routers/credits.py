@@ -5,10 +5,9 @@ Progress is derived from transactions linked via `credit_id`:
     installments_paid = round(amount_paid / monthly_payment)
 
 We don't model an installment schedule explicitly — the assumption is
-fixed-amount monthly payments, which matches typical PT consumer credit
-(Cofidis, Cetelem, BNP, etc.). If a payment is missed or partial, the
-computed count may be off by one; the user can correct via the notes
-field if needed.
+fixed-amount monthly payments, which matches typical consumer-credit
+products. If a payment is missed or partial the computed count may be
+off by one; the user can correct via the notes field if needed.
 """
 from datetime import date
 from typing import Optional
@@ -30,6 +29,11 @@ class CreditIn(BaseModel):
     total_amount: float = Field(gt=0)
     monthly_payment: float = Field(gt=0)
     total_installments: int = Field(gt=0)
+    # Lump amount already paid before this credit was created in Euroly
+    # (for loans that started months/years ago and we don't have the
+    # historical transactions for). Counted into progress as if it were
+    # transaction-derived.
+    paid_before_tracking: float = 0.0
     interest_rate: Optional[float] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
@@ -57,15 +61,21 @@ class CreditProgress(CreditOut):
 def _progress(db: Session, credit: models.Credit) -> dict:
     """Compute payment progress for a single credit.
 
-    All fields are derived — none are persisted on Credit itself, which
+    `amount_paid` combines two sources:
+    - `credit.paid_before_tracking`: manual baseline for installments paid
+      before Euroly started seeing this loan's transactions.
+    - sum of all linked Transaction.amount values.
+
+    All other fields are derived — none are persisted on Credit, which
     means they always reflect the current state of linked transactions.
     """
-    amount_paid = (
+    tx_paid = (
         db.query(func.coalesce(func.sum(models.Transaction.amount), 0.0))
         .filter(models.Transaction.credit_id == credit.id)
         .scalar()
         or 0.0
     )
+    amount_paid = float(tx_paid) + (credit.paid_before_tracking or 0.0)
     last = (
         db.query(func.max(models.Transaction.date))
         .filter(models.Transaction.credit_id == credit.id)

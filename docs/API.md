@@ -174,8 +174,8 @@ List credits with computed progress. Optional `?active_only=true`.
 ```json
 {
   "id": 1,
-  "name": "Sofá",
-  "creditor": "Cofidis",
+  "name": "Empréstimo Demo",
+  "creditor": "Credor A",
   "total_amount": 1800.0,
   "monthly_payment": 50.0,
   "total_installments": 36,
@@ -207,8 +207,8 @@ Create.
 
 ```json
 {
-  "name": "Sofá",
-  "creditor": "Cofidis",
+  "name": "Empréstimo Demo",
+  "creditor": "Credor A",
   "total_amount": 1800.0,
   "monthly_payment": 50.0,
   "total_installments": 36,
@@ -240,7 +240,7 @@ Create.
 
 ```json
 {
-  "keyword": "COFIDIS",
+  "keyword": "CREDOR-A",
   "match_type": "contains",
   "category_id": 7,
   "credit_id": 1,

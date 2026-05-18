@@ -14,6 +14,7 @@
 | Validation  | Pydantic v2                     | Comes with FastAPI; same models drive request validation and response shaping.                                                                                                              |
 | Excel       | [pandas](https://pandas.pydata.org/) 2.2 + [openpyxl](https://openpyxl.readthedocs.io/) 3.1 | pandas absorbs the locale / encoding / column-shape variation across PT bank exports. openpyxl is the engine for `.xlsx`. Heavyweight, but lazy-imported only in the upload path.   |
 | Multipart   | `python-multipart`              | Required for FastAPI's file upload form fields.                                                                                                                                              |
+| Testing     | [pytest](https://docs.pytest.org/) 8.3 + [httpx](https://www.python-httpx.org/) 0.28 | pytest for the suite, httpx because FastAPI's `TestClient` depends on it. In-memory SQLite per test — see [TESTING.md](TESTING.md).        |
 
 ## Frontend
 
@@ -25,9 +26,12 @@
 | Styling      | [Tailwind CSS](https://tailwindcss.com/) 3                                     | Utility-first lets you build a coherent UI without dragging in a component library. The brand palette is customized in `tailwind.config.js`.                                              |
 | Charts       | [Recharts](https://recharts.org/) 2                                            | Declarative React-native API, plays well with Tailwind, batteries-included tooltips and legends. Not the fastest with thousands of data points; fine here.                                  |
 | Icons        | [lucide-react](https://lucide.dev/) 0.451                                      | Clean, consistent set, tree-shakes per-icon, MIT.                                                                                                                                          |
-| Fonts        | Inter (Google Fonts via `<link>`)                                              | One stylesheet tag in `index.html`, no build-time font hosting.                                                                                                                            |
+| Toasts       | [sonner](https://sonner.emilkowal.ski/) 1.7                                    | Tiny (~3 kB gzipped), API-driven (no JSX-wrapping notification provider), supports action buttons natively — used for undo on destructive flows.                                                       |
+| Fonts        | Manrope + JetBrains Mono (Google Fonts via `<link>`)                           | Manrope for UI (geometric-friendly, distinct from the ubiquitous Inter), JetBrains Mono for tabular numbers in balances and ledger tables.                                                  |
 
 No state-management library, no React Query, no Zustand. Pages own their own fetches and `useState`. If the app ever grows past ~10 pages this should be revisited.
+
+The visual identity uses a custom palette defined in [`tailwind.config.js`](../frontend/tailwind.config.js): plum/aubergine (`brand-*`) for the primary identity, warm amber (`accent-*`) for highlights and the logo glyph, and a slightly warm neutral (`surface-*`) for backgrounds. Skeleton loaders ([Skeleton.jsx](../frontend/src/components/Skeleton.jsx)) replace the previous text-based "A carregar..." placeholders.
 
 ## Tooling
 

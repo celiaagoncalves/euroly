@@ -146,6 +146,124 @@ def delete_transaction(tx_id: int, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
+@router.get("/transfer-suggestions")
+def transfer_suggestions(
+    max_days: int = Query(7, ge=0, le=90),
+    amount_tolerance: float = Query(0.0, ge=0, le=100),
+    db: Session = Depends(get_db),
+):
+    """Detect plausible canceling-out pairs (e.g. a payment fronted for
+    someone + their reimbursement to you).
+
+    Heuristic: pair every income with an expense within `amount_tolerance`
+    of it (€), posted within `max_days` of it (days). Excludes rows already
+    flagged as transfer or already linked to a credit. Each transaction
+    can appear in at most one pair.
+
+    When multiple candidates fit, ranking is:
+        1) smallest amount delta wins
+        2) ties broken by smallest day delta
+
+    With `amount_tolerance=0` we revert to exact-amount matching. The
+    endpoint mutates nothing — the user confirms pairs via
+    /bulk-mark-transfer.
+    """
+    candidates = (
+        db.query(models.Transaction)
+        .filter(
+            models.Transaction.is_transfer.is_(False),
+            models.Transaction.credit_id.is_(None),
+        )
+        .order_by(models.Transaction.date)
+        .all()
+    )
+
+    # With tolerance > 0 we can't pre-index by exact amount, so we just
+    # split into incomes / expenses and do an O(n*m) scan. For typical
+    # PT-bank import sizes (<10k rows) this runs in well under a second.
+    expenses = [t for t in candidates if t.type == "expense"]
+    used_expense_ids: set[int] = set()
+    pairs = []
+
+    for i in candidates:
+        if i.type != "income":
+            continue
+        best, best_amt_delta, best_days_delta = None, None, None
+        for e in expenses:
+            if e.id in used_expense_ids:
+                continue
+            amt_delta = abs(round(i.amount - e.amount, 2))
+            if amt_delta > amount_tolerance:
+                continue
+            days_delta = abs((i.date - e.date).days)
+            if days_delta > max_days:
+                continue
+            # Rank: smaller amount delta wins; tie-break on date.
+            if best is None or (amt_delta, days_delta) < (best_amt_delta, best_days_delta):
+                best, best_amt_delta, best_days_delta = e, amt_delta, days_delta
+        if best is not None:
+            used_expense_ids.add(best.id)
+            pairs.append({
+                "income": _serialize(i).model_dump(mode="json"),
+                "expense": _serialize(best).model_dump(mode="json"),
+                "days_apart": best_days_delta,
+                "amount_delta": best_amt_delta,
+                "amount": round(i.amount, 2),
+            })
+
+    return {
+        "count": len(pairs),
+        "max_days": max_days,
+        "amount_tolerance": round(amount_tolerance, 2),
+        "pairs": pairs,
+    }
+
+
+class BulkDelete(BaseModel):
+    ids: list[int]
+
+
+class BulkTransferMark(BaseModel):
+    ids: list[int]
+    is_transfer: bool = True
+
+
+@router.post("/bulk-mark-transfer")
+def bulk_mark_transfer(payload: BulkTransferMark, db: Session = Depends(get_db)):
+    """Flip the `is_transfer` flag on many transactions in one round-trip.
+
+    Marking pairs as transfers excludes them from dashboard income/expense
+    aggregations — used for the "transações que se anulam" workflow.
+    """
+    if not payload.ids:
+        return {"updated": 0}
+    updated = (
+        db.query(models.Transaction)
+        .filter(models.Transaction.id.in_(payload.ids))
+        .update({"is_transfer": payload.is_transfer}, synchronize_session=False)
+    )
+    db.commit()
+    return {"updated": updated}
+
+
+@router.post("/bulk-delete")
+def bulk_delete(payload: BulkDelete, db: Session = Depends(get_db)):
+    """Delete many transactions in a single DB round-trip.
+
+    Returns the count actually deleted (ids that didn't exist are silently
+    ignored — the client doesn't usually care).
+    """
+    if not payload.ids:
+        return {"deleted": 0}
+    deleted = (
+        db.query(models.Transaction)
+        .filter(models.Transaction.id.in_(payload.ids))
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return {"deleted": deleted}
+
+
 @router.post("/import")
 async def import_file(
     file: UploadFile = File(...),

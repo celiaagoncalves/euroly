@@ -25,6 +25,7 @@ import {
 } from 'recharts';
 import { api, fmtEUR } from '../api.js';
 import { Card, Section } from '../components/Card.jsx';
+import { Skeleton, SkeletonCard } from '../components/Skeleton.jsx';
 
 const months = [
   'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
@@ -131,14 +132,22 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card title="Rendimento" value={fmtEUR(summary?.total_income)} accent="green" />
-        <Card title="Despesas" value={fmtEUR(summary?.total_expenses)} accent="red" />
-        <Card title="Poupança" value={fmtEUR(summary?.savings)} accent="blue" />
-        <Card
-          title="Taxa de Poupança"
-          value={`${(summary?.savings_rate ?? 0).toFixed(1)}%`}
-          accent="slate"
-        />
+        {summary === null ? (
+          <>
+            <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
+          </>
+        ) : (
+          <>
+            <Card title="Rendimento" value={fmtEUR(summary.total_income)} accent="green" />
+            <Card title="Despesas" value={fmtEUR(summary.total_expenses)} accent="red" />
+            <Card title="Poupança" value={fmtEUR(summary.savings)} accent="blue" />
+            <Card
+              title="Taxa de Poupança"
+              value={`${(summary.savings_rate ?? 0).toFixed(1)}%`}
+              accent="slate"
+            />
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

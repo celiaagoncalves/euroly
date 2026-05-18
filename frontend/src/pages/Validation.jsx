@@ -1,31 +1,36 @@
 // Validação page — the queue of uncategorized transactions.
 //
-// Anything the auto-categorizer didn't match ends up here. The user picks
-// a category per row (and optionally checks "Guardar regra" to auto-create
-// a `contains` rule from the first three words of the description, so the
-// same payee categorizes itself on the next import). "Validar selecionadas"
-// applies every pending choice in one go.
+// Anything the auto-categorizer didn't match ends up here. For each row
+// the user picks a category, optionally a credit (when this payment
+// services a loan), and optionally checks "Guardar regra" so future
+// imports with the same description auto-classify the same way.
 //
-// Selections are tracked in local state keyed by transaction id; only when
-// the user clicks Validar does anything hit the backend.
+// Selections are tracked in local state keyed by transaction id; only
+// when the user clicks Validar does anything hit the backend.
 
 import { useEffect, useState } from 'react';
-import { api } from '../api.js';
+import { toast } from 'sonner';
+import { api, fmtEUR } from '../api.js';
 import { Section } from '../components/Card.jsx';
-
-function fmtEUR(n) {
-  return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(n || 0);
-}
+import { Sparkles } from 'lucide-react';
 
 export default function Validation() {
   const [rows, setRows] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [selections, setSelections] = useState({}); // {id: {category_id, save_as_rule}}
+  const [credits, setCredits] = useState([]);
+  // { [tx_id]: { category_id, credit_id, save_as_rule } }
+  const [selections, setSelections] = useState({});
+  const [reapplying, setReapplying] = useState(false);
 
   async function load() {
-    const [pending, cats] = await Promise.all([api.listPending(), api.listCategories()]);
+    const [pending, cats, crs] = await Promise.all([
+      api.listPending(),
+      api.listCategories(),
+      api.listCredits(),
+    ]);
     setRows(pending);
     setCategories(cats);
+    setCredits(crs);
   }
 
   useEffect(() => { load(); }, []);
@@ -34,11 +39,10 @@ export default function Validation() {
     setSelections((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
   }
 
-  async function applyOne(tx) {
-    const sel = selections[tx.id];
-    if (!sel?.category_id) return;
+  async function persistOne(tx, sel) {
     await api.updateTransaction(tx.id, {
       category_id: parseInt(sel.category_id, 10),
+      credit_id: sel.credit_id ? parseInt(sel.credit_id, 10) : null,
       is_validated: true,
     });
     if (sel.save_as_rule) {
@@ -46,39 +50,66 @@ export default function Validation() {
       // the description as the keyword. Bank descriptions like
       // "EDP COMERCIAL FACTURA 1234" become rules on "EDP COMERCIAL
       // FACTURA" — usually specific enough. The user can refine it
-      // later in Backoffice → Regras.
+      // later in Backoffice → Regras. If a credit was picked, the rule
+      // also pins matching transactions to that credit.
       const keyword = tx.description.split(' ').slice(0, 3).join(' ');
       await api.createRule({
         keyword,
         match_type: 'contains',
         category_id: parseInt(sel.category_id, 10),
+        credit_id: sel.credit_id ? parseInt(sel.credit_id, 10) : null,
         priority: 100,
       });
+    }
+  }
+
+  async function applyOne(tx) {
+    const sel = selections[tx.id];
+    if (!sel?.category_id) return;
+    try {
+      await persistOne(tx, sel);
+      toast.success('Transação validada.');
+    } catch (err) {
+      toast.error(`Falhou: ${err.message}`);
+      return;
     }
     load();
   }
 
   async function applyAll() {
     const entries = Object.entries(selections).filter(([, v]) => v?.category_id);
-    for (const [id, sel] of entries) {
-      const tx = rows.find((r) => r.id === parseInt(id, 10));
-      if (!tx) continue;
-      await api.updateTransaction(tx.id, {
-        category_id: parseInt(sel.category_id, 10),
-        is_validated: true,
-      });
-      if (sel.save_as_rule) {
-        const keyword = tx.description.split(' ').slice(0, 3).join(' ');
-        await api.createRule({
-          keyword,
-          match_type: 'contains',
-          category_id: parseInt(sel.category_id, 10),
-          priority: 100,
-        });
+    if (entries.length === 0) return;
+    try {
+      for (const [id, sel] of entries) {
+        const tx = rows.find((r) => r.id === parseInt(id, 10));
+        if (!tx) continue;
+        await persistOne(tx, sel);
       }
+      toast.success(`${entries.length} transação${entries.length === 1 ? '' : 'ões'} validada${entries.length === 1 ? '' : 's'}.`);
+    } catch (err) {
+      toast.error(`Falhou a meio: ${err.message}`);
     }
     setSelections({});
     load();
+  }
+
+  const readyCount = Object.values(selections).filter((s) => s?.category_id).length;
+
+  async function reapplyRules() {
+    setReapplying(true);
+    try {
+      const res = await api.applyAllRules();
+      if (res.matched > 0) {
+        toast.success(`${res.matched} transação${res.matched === 1 ? '' : 'ões'} categorizada${res.matched === 1 ? '' : 's'} pelas regras.`);
+      } else {
+        toast('Nenhuma transação foi apanhada. Verifica as tuas regras.');
+      }
+      load();
+    } catch (err) {
+      toast.error(`Falhou: ${err.message}`);
+    } finally {
+      setReapplying(false);
+    }
   }
 
   return (
@@ -88,14 +119,26 @@ export default function Validation() {
           <h1 className="text-2xl font-semibold text-slate-900">Validação</h1>
           <p className="text-sm text-slate-500">Transações pendentes de categorização.</p>
         </div>
-        <button
-          onClick={applyAll}
-          disabled={Object.keys(selections).length === 0}
-          className="bg-brand-600 hover:bg-brand-700 disabled:bg-slate-300 text-white text-sm font-medium px-4 py-2 rounded-lg"
-        >
-          Validar selecionadas
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={reapplyRules}
+            disabled={reapplying}
+            title="Correr todas as regras contra as transações que ainda não têm categoria — útil depois de criares regras novas."
+            className="inline-flex items-center gap-1 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium px-3 py-2 rounded-lg disabled:opacity-50"
+          >
+            <Sparkles size={14} />
+            {reapplying ? 'A correr...' : 'Re-aplicar regras'}
+          </button>
+          <button
+            onClick={applyAll}
+            disabled={readyCount === 0}
+            className="bg-brand-600 hover:bg-brand-700 disabled:bg-slate-300 text-white text-sm font-medium px-4 py-2 rounded-lg"
+          >
+            Validar selecionadas ({readyCount})
+          </button>
+        </div>
       </header>
+
 
       <Section title={`${rows.length} transações pendentes`}>
         {rows.length === 0 ? (
@@ -109,6 +152,7 @@ export default function Validation() {
                   <th className="py-2 pr-4">Descrição</th>
                   <th className="py-2 pr-4 text-right">Valor</th>
                   <th className="py-2 pr-4">Categoria</th>
+                  <th className="py-2 pr-4">Crédito</th>
                   <th className="py-2 pr-4">Regra</th>
                   <th className="py-2 pr-4"></th>
                 </tr>
@@ -135,6 +179,19 @@ export default function Validation() {
                             .map((c) => (
                               <option key={c.id} value={c.id}>{c.name}</option>
                             ))}
+                        </select>
+                      </td>
+                      <td className="py-2 pr-4">
+                        <select
+                          value={sel.credit_id || ''}
+                          onChange={(e) => setSel(tx.id, { credit_id: e.target.value })}
+                          className="border border-slate-200 rounded px-2 py-1 text-xs"
+                          title="Se este pagamento serve um crédito, escolhe aqui — conta como prestação paga"
+                        >
+                          <option value="">— sem crédito —</option>
+                          {credits.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
                         </select>
                       </td>
                       <td className="py-2 pr-4">

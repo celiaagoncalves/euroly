@@ -10,10 +10,11 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, fmtEUR } from '../api.js';
 import { Card, Section } from '../components/Card.jsx';
+import { Skeleton, SkeletonCard } from '../components/Skeleton.jsx';
 import { CreditCard, ArrowRight, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
 
 export default function Credits() {
-  const [credits, setCredits] = useState([]);
+  const [credits, setCredits] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [details, setDetails] = useState({}); // {credit_id: [transactions]}
   const [error, setError] = useState(null);
@@ -22,9 +23,12 @@ export default function Credits() {
     try {
       setCredits(await api.listCredits());
     } catch (e) {
+      setCredits([]);
       setError(e.message);
     }
   }
+
+  const loading = credits === null;
   useEffect(() => {
     load();
   }, []);
@@ -43,7 +47,7 @@ export default function Credits() {
     }
   }
 
-  const totals = credits.reduce(
+  const totals = (credits || []).reduce(
     (acc, c) => ({
       total: acc.total + c.total_amount,
       paid: acc.paid + c.amount_paid,
@@ -73,13 +77,36 @@ export default function Credits() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card title="Total contraído" value={fmtEUR(totals.total)} accent="slate" />
-        <Card title="Já pago" value={fmtEUR(totals.paid)} accent="green" />
-        <Card title="Em falta" value={fmtEUR(totals.remaining)} accent="red" />
-        <Card title="Prestação mensal" value={fmtEUR(totals.monthly)} accent="blue" hint="soma dos créditos ativos" />
+        {loading ? (
+          <>
+            <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
+          </>
+        ) : (
+          <>
+            <Card title="Total contraído" value={fmtEUR(totals.total)} accent="slate" />
+            <Card title="Já pago" value={fmtEUR(totals.paid)} accent="green" />
+            <Card title="Em falta" value={fmtEUR(totals.remaining)} accent="red" />
+            <Card title="Prestação mensal" value={fmtEUR(totals.monthly)} accent="blue" hint="soma dos créditos ativos" />
+          </>
+        )}
       </div>
 
-      {credits.length === 0 ? (
+      {loading ? (
+        <div className="space-y-3">
+          {[0, 1].map((i) => (
+            <div key={i} className="bg-surface-0 border border-surface-200 rounded-xl p-5">
+              <div className="flex items-center gap-4">
+                <Skeleton className="w-10 h-10 rounded-lg" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-2 w-full" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : credits.length === 0 ? (
         <Section title="Sem créditos">
           <div className="text-sm text-slate-500 flex items-start gap-2">
             <AlertCircle size={16} className="text-amber-500 mt-0.5" />

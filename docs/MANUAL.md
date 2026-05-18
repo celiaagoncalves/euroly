@@ -22,7 +22,7 @@ Vai a **Backoffice → Contas**.
 
 Para cada conta bancária, cartão ou e-money que tens, clica em "Adicionar" e preenche:
 
-- **Nome** — como queres ver a conta listada (ex: "Conta Principal", "Cartão Crédito", "Revolut").
+- **Nome** — como queres ver a conta listada (ex: "Conta Principal", "Cartão", "Carteira E-money").
 - **Tipo** — À ordem / Poupança / Cartão / E-money.
 - **Saldo inicial** — o saldo que a conta tinha ANTES das transações que vais importar. Se vais importar tudo desde o início, mete 0. Se só vais importar a partir de Janeiro de 2026, mete o saldo a 31 de Dezembro de 2025.
 - **Cor** — usada nos cartões e gráficos.
@@ -37,7 +37,7 @@ Salta este passo se não tens empréstimos ativos.
 Vai a **Backoffice → Créditos** e adiciona cada empréstimo:
 
 - **Nome do crédito** — como o queres identificar (ex: "Sofá", "Carro", "Crédito Pessoal").
-- **Credor** — quem dá o crédito (ex: "Cofidis", "Cetelem", "Banco X").
+- **Credor** — quem dá o crédito (ex: "Banco X", "Financeira Y").
 - **Total a pagar** — montante total que vais pagar do princípio ao fim (capital + juros).
 - **Prestação mensal** — quanto sai por mês.
 - **Nº prestações** — quantas prestações no total (ex: 36).
@@ -60,15 +60,15 @@ Vai a **Backoffice → Regras**. Para cada padrão recorrente nos teus extratos,
 
 > 💡 **Dica:** antes de gravar, clica em "Pré-visualizar" para ver quantas transações esta regra apanharia (precisa de já teres importado pelo menos um extrato).
 
-> 💡 **Exemplo prático:** se tens um crédito Cofidis com débito mensal a aparecer no banco como "DD COFIDIS 12345678", cria:
+> 💡 **Exemplo prático:** se tens um crédito cujo débito mensal aparece no banco como "DD CREDOR-X 12345678", cria:
 >
-> - Palavra-chave: `COFIDIS`
+> - Palavra-chave: `CREDOR-X`
 > - Tipo: `contém`
 > - Categoria: `Créditos`
-> - Crédito: `Sofá` (ou seja qual for o teu crédito Cofidis)
+> - Crédito: o crédito correspondente
 > - Prioridade: `50` (mais específica que regras genéricas)
 >
-> A partir daí, todas as parcelas do Cofidis vão para Créditos e contam automaticamente como pagamentos do crédito.
+> A partir daí, todas as parcelas com aquele descritivo vão para Créditos e contam automaticamente como pagamentos do crédito.
 
 Não precisas de criar todas as regras à primeira — começa com as principais (ordenado, renda, água, luz, supermercado) e cria as restantes à medida que vais importando.
 
@@ -154,7 +154,7 @@ Para restaurar: copia o ficheiro de volta para o mesmo sítio antes de abrir a a
 Não. É single-user. Se queres separar despesas com outra pessoa, podes criar contas distintas para cada um e usar filtros no dashboard, mas não há autenticação nem perfis.
 
 **E se o meu banco usar um formato de Excel diferente?**
-A deteção de colunas é tolerante e cobre os principais bancos portugueses (Caixa Geral, Millennium, Activo Bank, Santander, BPI). Se algo falha, abre o Excel, confirma que tem colunas "Data Operação", "Descrição" e "Montante" (ou equivalentes) e tenta de novo. Para suporte a um banco novo, ver [IMPORT.md](IMPORT.md#adding-a-new-bank-format).
+A deteção de colunas é tolerante e cobre os formatos mais comuns dos bancos portugueses. Se algo falha, abre o Excel, confirma que tem colunas "Data Operação", "Descrição" e "Montante" (ou equivalentes) e tenta de novo. Para suporte a um banco novo, ver [IMPORT.md](IMPORT.md#adding-a-new-bank-format).
 
 **Posso editar uma regra depois de criada?**
 A app atual não tem botão de editar regras — só criar, apagar ou pré-visualizar. Para alterar, apaga e cria de novo. (É uma melhoria fácil para o futuro.)

@@ -17,8 +17,8 @@ def apply_rules(db: Session) -> int:
     For each pending transaction we walk the rules list and stop at the
     first match (lowest priority number wins). If the matching rule also
     has a `credit_id`, the transaction is linked to that credit too —
-    this is how repeating bank lines like "COFIDIS DD" automatically
-    attach as payments to the right loan in the Créditos page.
+    this is how a repeating bank line for a loan payment automatically
+    attaches to the right loan in the Créditos page.
 
     Returns the count of transactions that received a category.
     """
@@ -43,6 +43,10 @@ def apply_rules(db: Session) -> int:
                 tx.category_id = rule.category_id
                 if rule.credit_id is not None:
                     tx.credit_id = rule.credit_id
+                # Rule match means the user has expressed trust in this
+                # pattern, so we also mark the transaction as validated.
+                # The Validação page is for things rules DIDN'T match.
+                tx.is_validated = True
                 matched += 1
                 break
 

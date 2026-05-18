@@ -39,16 +39,59 @@ def get_db():
 
 
 def init_db():
-    """Create tables (if missing) and seed default categories on a fresh DB.
+    """Create tables (if missing), run additive column migrations, and seed defaults.
 
     Called once at app startup via the lifespan context in main.py.
-    NOTE: there is no migration tool — if the schema changes, delete
-    backend/euroly.db and let it be recreated.
+
+    No Alembic — instead we walk every mapped model and `ALTER TABLE
+    ADD COLUMN` for any column missing from the live DB. This handles
+    the only kind of schema change we ship today (additive), preserves
+    user data, and keeps the dev loop frictionless. For renames, type
+    changes, or constraint changes, the user still has to wipe the DB.
     """
     from . import models  # noqa: F401 — register models with Base before create_all
 
     Base.metadata.create_all(bind=engine)
+    _migrate_add_columns()
     _seed_defaults()
+
+
+def _migrate_add_columns():
+    """For each mapped table, ALTER TABLE ADD COLUMN for any model column not present.
+
+    SQLite's ALTER TABLE only supports adding columns (which is all we need).
+    Defaults from the SQLAlchemy column definition are applied to existing
+    rows where SQLite allows it.
+    """
+    from sqlalchemy import inspect, text
+    from . import models  # noqa: F401
+
+    insp = inspect(engine)
+    with engine.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            if not insp.has_table(table.name):
+                continue
+            existing_cols = {c["name"] for c in insp.get_columns(table.name)}
+            for col in table.columns:
+                if col.name in existing_cols:
+                    continue
+                # Compose: ADD COLUMN <name> <type> [NOT NULL] [DEFAULT <default>]
+                col_type = col.type.compile(dialect=engine.dialect)
+                default_clause = ""
+                if col.default is not None and getattr(col.default, "is_scalar", False):
+                    val = col.default.arg
+                    if isinstance(val, str):
+                        default_clause = f" DEFAULT '{val}'"
+                    elif isinstance(val, bool):
+                        default_clause = f" DEFAULT {1 if val else 0}"
+                    else:
+                        default_clause = f" DEFAULT {val}"
+                null_clause = " NOT NULL" if not col.nullable else ""
+                # SQLite requires a default if NOT NULL and table already has rows.
+                if null_clause and not default_clause:
+                    default_clause = " DEFAULT 0"
+                sql = f'ALTER TABLE {table.name} ADD COLUMN {col.name} {col_type}{null_clause}{default_clause}'
+                conn.execute(text(sql))
 
 
 def _seed_defaults():

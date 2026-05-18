@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, fmtEUR } from '../api.js';
 import { Card, Section } from '../components/Card.jsx';
+import { Skeleton, SkeletonCard } from '../components/Skeleton.jsx';
 import { Wallet, ArrowRight, AlertCircle } from 'lucide-react';
 
 const kindLabel = {
@@ -19,16 +20,19 @@ const kindLabel = {
 };
 
 export default function Accounts() {
-  const [accounts, setAccounts] = useState([]);
+  const [accounts, setAccounts] = useState(null); // null = not loaded yet
   const [error, setError] = useState(null);
 
   useEffect(() => {
     api.listAccounts()
       .then(setAccounts)
-      .catch((e) => setError(e.message));
+      .catch((e) => { setAccounts([]); setError(e.message); });
   }, []);
 
+  const loading = accounts === null;
+
   const totals = useMemo(() => {
+    if (!accounts) return { total: 0, count: 0 };
     const active = accounts.filter((a) => a.is_active);
     const total = active.reduce((s, a) => s + a.current_balance, 0);
     return { total, count: active.length };
@@ -54,20 +58,32 @@ export default function Accounts() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card title="Saldo total" value={fmtEUR(totals.total)} accent="blue" hint={`${totals.count} contas ativas`} />
-        <Card
-          title="Saldo positivo"
-          value={fmtEUR(accounts.filter((a) => a.current_balance >= 0).reduce((s, a) => s + a.current_balance, 0))}
-          accent="green"
-        />
-        <Card
-          title="Saldo negativo"
-          value={fmtEUR(accounts.filter((a) => a.current_balance < 0).reduce((s, a) => s + a.current_balance, 0))}
-          accent="red"
-        />
+        {loading ? (
+          <>
+            <SkeletonCard /><SkeletonCard /><SkeletonCard />
+          </>
+        ) : (
+          <>
+            <Card title="Saldo total" value={fmtEUR(totals.total)} accent="blue" hint={`${totals.count} contas ativas`} />
+            <Card
+              title="Saldo positivo"
+              value={fmtEUR(accounts.filter((a) => a.current_balance >= 0).reduce((s, a) => s + a.current_balance, 0))}
+              accent="green"
+            />
+            <Card
+              title="Saldo negativo"
+              value={fmtEUR(accounts.filter((a) => a.current_balance < 0).reduce((s, a) => s + a.current_balance, 0))}
+              accent="red"
+            />
+          </>
+        )}
       </div>
 
-      {accounts.length === 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
+        </div>
+      ) : accounts.length === 0 ? (
         <Section title="Sem contas">
           <div className="text-sm text-slate-500 flex items-start gap-2">
             <AlertCircle size={16} className="text-amber-500 mt-0.5" />

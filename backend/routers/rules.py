@@ -160,6 +160,20 @@ def _matches_rule(description: str, keyword: str, match_type: str) -> bool:
     return False
 
 
+@router.post("/apply")
+def apply_all_rules(db: Session = Depends(get_db)):
+    """Re-run every rule against currently uncategorized transactions.
+
+    Useful after creating a new rule — the categorizer normally only runs
+    at import time, so historical transactions without a category won't
+    pick up new rules unless we re-apply here.
+    """
+    from services.categorizer import apply_rules
+
+    matched = apply_rules(db)
+    return {"matched": matched}
+
+
 @router.get("/export")
 def export_rules(db: Session = Depends(get_db)):
     rules = db.query(models.Rule).order_by(models.Rule.priority).all()

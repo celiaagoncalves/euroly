@@ -5,6 +5,22 @@ __pycache__/
 backend/.venv/
 backend/euroly.db
 backend/euroly.db-journal
+backend/euroly.db-wal
+backend/euroly.db-shm
+
+# Test / coverage artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Environment files (in case secrets ever land here)
+.env
+.env.local
+.env.*.local
 
 # Node / Vite
 frontend/node_modules/
@@ -24,3 +40,4 @@ Thumbs.db
 
 # Local Claude / agent notes
 CLAUDE.md
+.claude/settings.local.json

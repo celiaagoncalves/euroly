@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/img/banner.svg" alt="Euroly — local-first budget tracker" width="100%" />
+</p>
+
 # Euroly
 
 > Personal budget tracker that runs entirely on your machine. Import bank exports, auto-categorize, track loans, see where your money goes — without uploading a single transaction to anyone's server.
@@ -7,12 +11,15 @@ Euroly is a local-only full-stack web app for managing monthly finances. It runs
 ## Features
 
 - **Multi-account** — track several bank accounts, savings, cards and e-money wallets side by side.
-- **Bank export import** — drop in `.xlsx` or `.csv` files from your bank; columns are auto-detected for typical Portuguese formats.
+- **Bank export import** — drop in `.xlsx`, `.xls` or `.csv` files from your bank; columns are auto-detected for typical Portuguese formats.
 - **Auto-categorization** — define keyword rules once, and future imports categorize themselves.
-- **Credit / loan tracking** — model each loan with its total, monthly payment and term; payments are linked automatically via rules.
+- **Credit / loan tracking** — model each loan with its total, monthly payment, term, and a one-off baseline for installments paid before tracking started; payments are linked automatically via rules.
 - **Validation queue** — review and confirm anything the auto-categorizer couldn't match.
 - **Cross-account dashboard** — KPIs, monthly bars, category pie, savings line. Filter by account or see the global view.
 - **Smart dedupe** — re-importing the same file is safe; the running balance disambiguates same-day same-amount transactions.
+- **Transfer-pair detection** — finds and suggests pairs of canceling-out transactions (e.g. a payment fronted for someone + their reimbursement), with configurable amount tolerance and date window.
+- **Undo on destructive actions** — deleting transactions, accounts, credits, categories or rules shows a 5-second undo toast before anything actually leaves the database.
+- **Tested core** — pytest suite covers the importer (locale parsing, dedupe), the rule engine (priority, manual stickiness, credit linkage), and the pair-matcher (exact, tolerance, ranking).
 
 ## Quick start (Windows)
 
